@@ -10,7 +10,7 @@ CORS(app)
 
 nlp = spacy.load("en_core_web_sm")
 
-genai.configure(api_key="AIzaSyBAzYkYC7iiA-p1WuOWl9FIb2xN6KQ_gIM")
+genai.configure(api_key="api_key")
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
