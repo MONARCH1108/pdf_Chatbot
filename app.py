@@ -6,11 +6,12 @@ import google.generativeai as genai
 import os
 
 app = Flask(__name__)
-CORS(app) 
+CORS(app)  
 
 nlp = spacy.load("en_core_web_sm")
 
-genai.configure(api_key="api_key")
+genai.configure(api_key="your_api_key")
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -19,9 +20,7 @@ pdf_text = ""
 def extract_text_from_pdf(pdf_path):
     """Extracts text from the uploaded PDF."""
     doc = fitz.open(pdf_path)
-    text = ""
-    for page in doc:
-        text += page.get_text("text") + "\n"
+    text = "\n".join(page.get_text("text") for page in doc)
     return text
 
 def clean_text(text):
@@ -33,15 +32,14 @@ def clean_text(text):
     ]
     return " ".join(cleaned_tokens)
 
-
 @app.route("/")
 def index():
     return render_template("task.html")
 
-
 @app.route("/upload", methods=["POST"])
 def upload_file():
-    global pdf_text 
+    """Handles PDF file upload and extracts text."""
+    global pdf_text  
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     
@@ -56,7 +54,6 @@ def upload_file():
     cleaned_text = clean_text(pdf_text)  
     return jsonify({"success": True, "text": cleaned_text})
 
-
 @app.route("/ask", methods=["POST"])
 def ask_question():
     global pdf_text  
@@ -64,15 +61,26 @@ def ask_question():
         return jsonify({"error": "No PDF uploaded yet!"}), 400
 
     data = request.json
-    question = data.get("question", "")
+    question = data.get("question", "").strip()
 
-    if not question.strip():
+    if not question:
         return jsonify({"error": "Invalid question"}), 400
 
-    model = genai.GenerativeModel("gemini-pro")
-    prompt = f"You are an AI assistant that answers questions based on the given text.\nText: {pdf_text}\nQuestion: {question}\nAnswer:"
-    response = model.generate_content(prompt)
-    return jsonify({"answer": response.text.strip()})
+    try:
+        model = genai.GenerativeModel("gemini-pro")
+        prompt = f"You are an AI assistant that answers questions based on the given text.\nText: {pdf_text}\nQuestion: {question}\nAnswer:"
+        response = model.generate_content(prompt)
+
+        print("API Response:", response)  # Debugging line
+
+        if not hasattr(response, "text") or not response.text.strip():
+            return jsonify({"error": "No response from AI"}), 500
+
+        return jsonify({"answer": response.text.strip()})
+
+    except Exception as e:
+        print(f"Error: {e}")  # Logs error in terminal
+        return jsonify({"error": f"AI service error: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
